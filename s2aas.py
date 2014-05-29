@@ -35,7 +35,7 @@ def send_data(requestAddress):
     # Rest is change which send to the sensor's address
     unspentValue = unspentTxO[-1]['value']
     credit = 1000
-    fee = 1000
+    fee = 100
     change = unspentValue - credit - fee
 
     # Tx input
@@ -67,15 +67,22 @@ class EchoClientProtocol(WebSocketClientProtocol):
         self.sendMessage(json.dumps(notification_request))
 
     def onMessage(self, msg, binary):
-        #print "Message from BitEasy: " + msg
+        print "Message from BitEasy: " + msg
         jsonMsg = json.loads(msg)
         if jsonMsg['event'] == 'transactions:create':
             sender = jsonMsg["data"]["inputs"][0]["from_address"];
+            if sender == myAddress :
+                return
             data = jsonMsg["data"]["outputs"];
             for entry in data:
                 if entry["to_address"] == myAddress:
                     print "Received " + str(entry["value"]) + " satoshis from "+sender
             send_data(sender)
+
+    def onClose(self, wasClean, code, reason):
+        print("WebSocket connection closed: {0}".format(reason))
+        reactor.stop()
+        reactor.run()
 
 if __name__ == '__main__':
 
