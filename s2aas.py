@@ -11,6 +11,10 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
                                        WebSocketClientProtocol, \
                                        connectWS
 
+import serial
+# Open serial console for sensor reading
+ser = serial.Serial("/dev/ttyAMA0")
+
 # Bitcoin address of the sensor
 myAddress = 'mxjr2jvmbNFjQHA8qQ7FkE7jCX7E1jqWrK'
 
@@ -23,7 +27,7 @@ myPrivateKey = 'cR3UpPmZtS98M7GZo4Khk3AhQvFFnfLdw8g4ZZhS13obMQWksEDg'
 # but data to be added to a provable unspendable output
 datum_hex = '01'
 dataIdentifier = '!'
-payload = dataIdentifier + datum_hex
+#payload = dataIdentifier + datum_hex
 
 def send_data(requestAddress):
     # Get unspent tx outputs via blockr.io API
@@ -45,6 +49,12 @@ def send_data(requestAddress):
     # First output sends crendit back to requester in order that requester is able to identify tx
     # Secound output entails the actual data
 
+    line = ser.readline()
+    start = line.index('C')
+    end = line.index(',')
+    reading = int(line[start+6:end])
+    payload = dataIdentifier + reading
+
     # Third output is the change
     txOut = [{'value': credit, 'address': requestAddress}, {'value': 0, 'address': payload}, {'value': change, 'address': myAddress}]
 
@@ -55,7 +65,8 @@ def send_data(requestAddress):
     signedTx = sign(tx,0,myPrivateKey)
 
     # Push tx to testnet via blockr.io API
-    blockr_pushtx(signedTx)
+    # blockr_pushtx(signedTx)
+    print signedTx
     print "Transaction with payload "+payload+" sent to "+requestAddress
 
 
@@ -63,7 +74,7 @@ class EchoClientProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
         print "Sending notification request to Biteasy.com"
-        notification_request = {"event": "transactions:create","filters": {"addresses": [myAddress],"confidence": "UNCONFIRMED"}}
+        notification_request = {"event": "transactions:create","filters": {"addresses": [myAddress]}}
         self.sendMessage(json.dumps(notification_request))
 
     def onMessage(self, msg, binary):
@@ -90,5 +101,3 @@ if __name__ == '__main__':
     factory.protocol = EchoClientProtocol
     connectWS(factory)
     reactor.run()
-
-
